@@ -1,11 +1,19 @@
+#include <ArduboyTonesPitches.h>
+#include <ArduboyTones.h>
+
 #include <Arduboy2.h>
 #include "images.h"
+#include "tones.h"
+#include <EEPROM.h>
+#include "eeprom.h"
+
 
 Arduboy2 arduboy;
+ArduboyTones sound(arduboy.audio.enabled);
 
 int gamestate = 0;
-int carx = 20;
-int cary = 15;
+int carx = 5;
+int cary = 54;
 int carsize = 9;
 int enemyy = 0;
 int enemyx = 123;
@@ -21,26 +29,47 @@ int enemySize2 = 5;
 int enemyDown2 = 1;
 int enemyRight2 = 1;
 int enemydown = 1;
+uint8_t score = 0;
+int coinX = 63;
+int coinY = 32;
+int coinwidth = 4;
+int coinheight = 5;
+int highscore = 0;
 
 #define GAME_TITLE 0
 #define GAME_PLAY 1
 #define GAME_OVER 2
-#define GAME_HIGH 3
 
 void titlescreen() {
+  arduboy.setCursor(0, 0);
+  arduboy.print("Coin Rush!");
+  arduboy.print("\n");
+  arduboy.print(highscore);
+
+  for (int score; score = 0; score > highscore); {
+    highscore = score;
+    EEPROM.get(EEPROM_STORAGE_SPACE_START, highscore);
+    EEPROM.put(EEPROM_STORAGE_SPACE_START, highscore);
+  }
+  
   if (arduboy.justPressed(A_BUTTON)) {
     gamestate = GAME_PLAY;
     enemyy = random(11, 54);
     enemyX = random(11, 113);
-    
+    enemyX2 = random(0, 119);
+    enemyY2 = random(0, 63);
+    carx = 5;
+    cary = 54; 
+    score = 0;
+   
   }
 
-  if (arduboy.justPressed(B_BUTTON)) {
-    gamestate = GAME_HIGH;
-  }
 }
 
 void gameplay() {
+  
+  arduboy.setCursor(0, 0);
+  arduboy.print(score);
 
   if (cardirection == false) {
     Sprites::drawOverwrite(carx, cary, car, 0);
@@ -75,7 +104,7 @@ void gameplay() {
       cardirection = false;
     }
   
-  
+  Sprites::drawOverwrite (coinX, coinY, coin, 0);
 
   arduboy.fillRect (enemyx, enemyy, enemysize, enemysize, WHITE);
 
@@ -90,13 +119,29 @@ void gameplay() {
   Rect enemY2 (enemyX2, enemyY2, enemySize2, enemySize2);
   
   Rect player (carx, cary, carsize, carsize);
+
+  Rect coin (coinX, coinY, coinwidth, coinheight);
   
   if (arduboy.collide (player, enemy)) {
     gamestate = GAME_OVER;
+    sound.tones(hitsound);
   }
 
   if (arduboy.collide (player, enemY)) {
     gamestate = GAME_OVER;
+    sound.tones(hitsound);
+  }
+
+  if (arduboy.collide(player, enemY2)) {
+    gamestate = GAME_OVER;
+    sound.tones(hitsound);
+  }
+
+  if (arduboy.collide(player, coin)) {
+    score = score + 1;
+    coinX = random(0, 124);
+    coinY = random(0, 59);
+    sound.tones(coinsound);
   }
 
   if (enemyright == 1) {
@@ -166,11 +211,10 @@ void gameplay() {
 }
 
 void gameoverscreen() {
+  arduboy.setCursor(0, 0);
+  arduboy.print("game over screen");
   
-}
-
-void highscorescreen() {
-  if (arduboy.justPressed(B_BUTTON)) {
+  if (arduboy.justPressed(A_BUTTON)) {
     gamestate = GAME_TITLE;
   }
 }
@@ -189,10 +233,6 @@ void gameloop() {
 
     case GAME_OVER:
       gameoverscreen();
-      break;
-
-    case GAME_HIGH:
-      highscorescreen();
       break;
       
   }
