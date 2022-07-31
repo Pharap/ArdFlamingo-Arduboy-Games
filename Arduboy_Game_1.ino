@@ -46,10 +46,8 @@ void titlescreen() {
   arduboy.print("\n");
   arduboy.print(highscore);
 
-  for (int score; score = 0; score > highscore); {
+  if (score > highscore) {
     highscore = score;
-    EEPROM.get(EEPROM_STORAGE_SPACE_START, highscore);
-    EEPROM.put(EEPROM_STORAGE_SPACE_START, highscore);
   }
   
   if (arduboy.justPressed(A_BUTTON)) {
@@ -62,6 +60,11 @@ void titlescreen() {
     cary = 54; 
     score = 0;
    
+  }
+
+  if (arduboy.justPressed(B_BUTTON)) {
+    EEPROM.get(EEPROM_STORAGE_SPACE_START, highscore);
+    EEPROM.put(EEPROM_STORAGE_SPACE_START, highscore);
   }
 
 }
