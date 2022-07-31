@@ -63,7 +63,6 @@ void titlescreen() {
   }
 
   if (arduboy.justPressed(B_BUTTON)) {
-    EEPROM.get(EEPROM_STORAGE_SPACE_START, highscore);
     EEPROM.put(EEPROM_STORAGE_SPACE_START, highscore);
   }
 
