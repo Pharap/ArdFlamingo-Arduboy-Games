@@ -22,17 +22,26 @@ int enemyDown2 = 1;
 int enemyRight2 = 1;
 int enemydown = 1;
 
+// Target time for the delay timer
+uint32_t delayTarget = 0;
+
 #define GAME_TITLE 0
+#define GAME_DELAY 4
 #define GAME_PLAY 1
 #define GAME_OVER 2
 #define GAME_HIGH 3
 
 void titlescreen() {
   if (arduboy.justPressed(A_BUTTON)) {
-    gamestate = GAME_PLAY;
     enemyy = random(11, 54);
     enemyX = random(11, 113);
-    
+
+    // Set the target time to be the current time
+    // plus 4000ms (i.e. 4 seconds)
+    delayTarget = (millis() + (4 * 1000));
+
+    // Change the state to the delay state
+    gamestate = GAME_DELAY;
   }
 
   if (arduboy.justPressed(B_BUTTON)) {
@@ -40,64 +49,86 @@ void titlescreen() {
   }
 }
 
-void gameplay() {
-
-  if (cardirection == false) {
-    Sprites::drawOverwrite(carx, cary, car, 0);
-  }
-
-  if (cardirection == true) {
+void drawPlayerCar()
+{
+  // This can be simplified further
+  if (cardirection)
+  {
     Sprites::drawOverwrite(carx, cary, car, 1);
   }
-  
-    if (arduboy.pressed(DOWN_BUTTON)) {
-      cary += 1;
-      Sprites::drawOverwrite(carx, cary, car, 1);
-      cardirection = true;
-      }
-    
+  else
+  {
+    Sprites::drawOverwrite(carx, cary, car, 0);
+  }
+}
 
-    if (arduboy.pressed(UP_BUTTON)) {
-      cary -= 1;
-      Sprites::drawOverwrite(carx, cary, car, 1);
-      cardirection = true;
-    }
+// Does what it says on the tin
+void drawEnemies()
+{
+  arduboy.fillRect(enemyx, enemyy, enemysize, enemysize, WHITE);
+  arduboy.fillRect(enemyX, enemyY, enemySize, enemySize, WHITE);
+  arduboy.fillRect(enemyX2, enemyY2, enemySize2, enemySize2, WHITE);
+}
 
-    if (arduboy.pressed(RIGHT_BUTTON)) {
-      carx += 1;
-      Sprites::drawOverwrite(carx, cary, car, 0);
-      cardirection = false;
-    }
+// Draws the cars and enemies
+void drawGame()
+{
+  drawPlayerCar();
+  drawEnemies();
+}
 
-    if (arduboy.pressed(LEFT_BUTTON)) {
-      carx -= 1;
-      Sprites::drawOverwrite(carx, cary, car, 0);
-      cardirection = false;
-    }
-  
-  
+void updateGameDelayState()
+{
+  // Get the current time
+  uint32_t current = millis();
 
-  arduboy.fillRect (enemyx, enemyy, enemysize, enemysize, WHITE);
-
-  arduboy.fillRect (enemyX, enemyY, enemySize, enemySize, WHITE);
-
-  arduboy.fillRect (enemyX2, enemyY2, enemySize2, enemySize2, WHITE);
-  
-  Rect enemy (enemyx, enemyy, enemysize, enemysize);
-
-  Rect enemY (enemyX, enemyY, enemySize, enemySize);
-
-  Rect enemY2 (enemyX2, enemyY2, enemySize2, enemySize2);
-  
-  Rect player (carx, cary, carsize, carsize);
-  
-  if (arduboy.collide (player, enemy)) {
-    gamestate = GAME_OVER;
+  // If the current time is greater than or equal to
+  // the target time, then 4 seconds has elapsed
+  if(current >= delayTarget)
+  {
+      // Change to the game play state to begin the game
+      gamestate = GAME_PLAY;
   }
 
-  if (arduboy.collide (player, enemY)) {
-    gamestate = GAME_OVER;
+  // Calculate the number of seconds remaining
+  int remainingSeconds = ((delayTarget - current) / 1000);
+
+  // Print the number of seconds remaining
+  arduboy.print(remainingSeconds);
+  arduboy.println(F(" seconds remaining..."));
+
+  drawGame();
+}
+
+void handlePlayerInput()
+{
+  if (arduboy.pressed(DOWN_BUTTON))
+  {
+    cary += 1;
+    cardirection = true;
   }
+
+  if (arduboy.pressed(UP_BUTTON))
+  {
+    cary -= 1;
+    cardirection = true;
+  }
+
+  if (arduboy.pressed(RIGHT_BUTTON))
+  {
+    carx += 1;
+    cardirection = false;
+  }
+
+  if (arduboy.pressed(LEFT_BUTTON))
+  {
+    carx -= 1;
+    cardirection = false;
+  }
+}
+
+void moveEnemies()
+{
 
   if (enemyright == 1) {
     enemyx = enemyx + 1;
@@ -162,7 +193,45 @@ void gameplay() {
   if (enemyX2 + enemySize2 == 123) {
     enemyRight2 = - 1;
   }
+}
 
+void handleCollisions()
+{
+  Rect player { carx, cary, carsize, carsize };
+  
+  Rect enemy { enemyx, enemyy, enemysize, enemysize };
+
+  if (arduboy.collide(player, enemy))
+  {
+    gamestate = GAME_OVER;
+
+    // No need to test any more collisions,
+    // so exit the function early
+    return;
+  }
+
+  Rect enemY { enemyX, enemyY, enemySize, enemySize };
+
+  if (arduboy.collide (player, enemY))
+  {
+    gamestate = GAME_OVER;
+
+    // No need to test any more collisions,
+    // so exit the function early
+    return;
+  }
+
+  Rect enemY2 (enemyX2, enemyY2, enemySize2, enemySize2);
+}
+
+void gameplay()
+{
+  // Defer to other functions,
+  // to avoid thinking about too much at once.
+  handlePlayerInput();
+  moveEnemies();
+  handleCollisions();
+  drawGame();
 }
 
 void gameoverscreen() {
@@ -181,6 +250,10 @@ void gameloop() {
     
     case GAME_TITLE:
       titlescreen();
+      break;
+
+    case GAME_DELAY:
+      updateGameDelayState();
       break;
 
     case GAME_PLAY:
@@ -207,13 +280,11 @@ void setup() {
 }
 
 void loop() {
-  if (!arduboy.nextFrame()) {
+  if (!arduboy.nextFrame())
     return;
-  }
   
   arduboy.clear();
   arduboy.pollButtons();
   gameloop();
   arduboy.display();
-
 }
